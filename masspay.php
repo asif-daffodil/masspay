@@ -6,74 +6,23 @@ class masspay
 
     protected static $curl;
 
-    /**
-     * Check Available Balance
-     * @return array
-     * @requires MassPay account created
-     * @requires MassPay API credentials available
-     */
-    public function check_available_balance(): array
+    public function handle_curl_operation ($url, $method, $data = null): array | bool
     {
-
-        curl_setopt_array(self::$curl, [
-            CURLOPT_URL => self::curl_url."/v1.0.0/payout/account/balance",
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "GET",
-            CURLOPT_HTTPHEADER => [
-                "Authorization: Bearer " . self::api_key,
-            ],
-        ]);
-
-        $response = curl_exec(self::$curl);
-        $err = curl_error(self::$curl);
-
-        if ($err) {
-            return ["error" => "cURL Error #:" . $err];
-        } else {
-            return json_decode($response, true);
+        // validate url and method
+        if (empty($url) || empty($method)) {
+            return false;
         }
-    }
 
-    /**
-     * Create User
-     * @param array $data
-     * @return array
-     * @requires MassPay account created
-     * @requires MassPay API credentials available
-     * @requires User data array ['country', 'first_name', 'last_name', 'email']
-     */
-    public function create_user($data): array
-    {
+
         curl_setopt_array(self::$curl, [
-            CURLOPT_URL => self::curl_url."/v1.0.0/payout/user",
+            CURLOPT_URL => self::curl_url . $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => "",
             CURLOPT_MAXREDIRS => 10,
             CURLOPT_TIMEOUT => 30,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "POST",
-            CURLOPT_POSTFIELDS => json_encode([
-                'notify_user' => false,
-                'internal_user_id' => uniqid(),
-                'country' => $data['country'],
-                'first_name' => $data['first_name'],
-                'last_name' => $data['last_name'],
-                'email' => $data['email'],
-                'address1' => $data['address1'] ?? null,
-                'address2' => $data['address2'] ?? null,
-                'city' => $data['city'] ?? null,
-                'state_province' => $data['state_province'] ?? null,
-                'postal_code' => $data['postal_code'] ?? null,
-                'middle_name' => $data['middle_name'] ?? null,
-                'mobile_number' => $data['mobile_number'] ?? null,
-                'business_name' => $data['business_name'] ?? null,
-                'language' => $data['language'] ?? null,
-                'date_of_birth' => $data['date_of_birth'] ?? null,
-            ]),
+            CURLOPT_CUSTOMREQUEST => $method,
+            CURLOPT_POSTFIELDS => $data != null ? json_encode($data): null,
             CURLOPT_HTTPHEADER => [
                 "Authorization: Bearer " . self::api_key,
                 "content-type: application/json"
@@ -90,6 +39,52 @@ class masspay
         }
     }
 
+    /**
+     * Check Available Balance
+     * @return array
+     * @requires MassPay account created
+     * @requires MassPay API credentials available
+     */
+
+    public function check_available_balance(): array
+    {
+        return $this->handle_curl_operation("/payout/account/balance", "GET");
+    }
+
+    /**
+     * Create User
+     * @param array $data
+     * @return array
+     * @requires MassPay account created
+     * @requires MassPay API credentials available
+     * @requires User data array ['country', 'first_name', 'last_name', 'email']
+     */
+    public function create_user(array $data): array | bool
+    {
+        if(empty($data) || !isset($data['country']) || !isset($data['first_name']) || !isset($data['last_name']) || !isset($data['email'])) {
+            return false;
+        }
+
+        return $this->handle_curl_operation("/payout/user", "POST", [
+            'notify_user' => false,
+            'internal_user_id' => uniqid(),
+            'country' => $data['country'],
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'],
+            'email' => $data['email'],
+            'address1' => $data['address1'] ?? null,
+            'address2' => $data['address2'] ?? null,
+            'city' => $data['city'] ?? null,
+            'state_province' => $data['state_province'] ?? null,
+            'postal_code' => $data['postal_code'] ?? null,
+            'middle_name' => $data['middle_name'] ?? null,
+            'mobile_number' => $data['mobile_number'] ?? null,
+            'business_name' => $data['business_name'] ?? null,
+            'language' => $data['language'] ?? null,
+            'date_of_birth' => $data['date_of_birth'] ?? null,
+        ]);
+    }
+
     /**Get destination token
      * @param array $data
      * @return array
@@ -97,29 +92,13 @@ class masspay
      */
 
 
-    public function get_destination_token($data = ['country' => 'USA', 'amount' => 200, 'include_payer_logos' => false]): array
+    public function get_destination_token(array $data): array | bool
     {
-        curl_setopt_array(self::$curl, [
-            CURLOPT_URL => self::curl_url."/payout/country/" . $data['country'] . "/best?amount=" . $data['amount'] . "&include_payer_logos=" . $data['include_payer_logos'],
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "GET",
-            CURLOPT_HTTPHEADER => [
-                "Authorization: Bearer " . self::api_key,
-            ],
-        ]);
-
-        $response = curl_exec(self::$curl);
-        $err = curl_error(self::$curl);
-
-        if ($err) {
-            return ["error" => "cURL Error #:" . $err];
-        } else {
-            return json_decode($response, true);
+        if(empty($data) || !isset($data['country']) || !isset($data['amount']) || !isset($data['include_payer_logos'])) {
+            return false;
         }
+
+        return $this->handle_curl_operation("/payout/country/" . $data['country'] . "/best?amount=" . $data['amount'] . "&include_payer_logos=" . $data['include_payer_logos'], "GET");
     }
 
     /** Get user attributes for destination_token
@@ -128,29 +107,13 @@ class masspay
      * @requires user_token, destination_token, currency
      */
 
-    public function get_user_attributes($data): array
+    public function get_user_attributes(array $data): array | bool
     {
-        curl_setopt_array(self::$curl, [
-            CURLOPT_URL => self::curl_url."/payout/attribute/" . $data['user_token'] . "/" . $data['destination_token'] . "/" . $data['currency'] . "?show_latest_attr_set_token=false",
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "GET",
-            CURLOPT_HTTPHEADER => [
-                "Authorization: Bearer " . self::api_key,
-            ],
-        ]);
-
-        $response = curl_exec(self::$curl);
-        $err = curl_error(self::$curl);
-
-        if ($err) {
-            return ["error" => "cURL Error #:" . $err];
-        } else {
-            return json_decode($response, true);
+        if(empty($data) ||  !isset($data['user_token']) || !isset($data['destination_token']) || !isset($data['currency'])) {
+            return false;
         }
+
+        return $this->handle_curl_operation("/payout/attribute/" . $data['user_token'] . "/" . $data['destination_token'] . "/" . $data['currency'] . "?show_latest_attr_set_token=false", "GET");
     }
 
     /**
@@ -174,33 +137,9 @@ class masspay
             ];
         }
 
-
-        curl_setopt_array(self::$curl, [
-            CURLOPT_URL => self::curl_url."/v1.0.0/payout/attribute/" . $data['user_token'] . "/" . $data['destination_token'] . "/" . $data['currency'],
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "POST",
-            CURLOPT_POSTFIELDS => json_encode([
-                'values' => $values
-            ]),
-            CURLOPT_HTTPHEADER => [
-                "Authorization: Bearer " . self::api_key,
-                "accept: application/json",
-                "content-type: application/json"
-            ],
+        return $this->handle_curl_operation("/payout/attribute/" . $data['user_token'] . "/" . $data['destination_token'] . "/" . $data['currency'], "POST", [
+            'values' => $values
         ]);
-
-        $response = curl_exec(self::$curl);
-        $err = curl_error(self::$curl);
-
-        if ($err) {
-            return ["error" => "cURL Error #:" . $err];
-        } else {
-            return json_decode($response, true);
-        }
     }
 
     /**
@@ -216,31 +155,7 @@ class masspay
 
     public function initiate_payout($data): array
     {
-
-        curl_setopt_array(self::$curl, [
-            CURLOPT_URL => self::curl_url."/payout/" . $data['user_token'],
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => "",
-            CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
-            CURLOPT_CUSTOMREQUEST => "POST",
-            CURLOPT_POSTFIELDS => json_encode($data['values']),
-            CURLOPT_HTTPHEADER => [
-                "Authorization: Bearer " . self::api_key,
-                "accept: application/json",
-                "content-type: application/json"
-            ],
-        ]);
-
-        $response = curl_exec(self::$curl);
-        $err = curl_error(self::$curl);
-
-        if ($err) {
-            return ["error" => "cURL Error #:" . $err];
-        } else {
-            return json_decode($response, true);
-        }
+        return $this->handle_curl_operation("/payout/" . $data['user_token'], "POST", $data['values']);
     }
 
 
@@ -256,44 +171,48 @@ class masspay
     }
 }
 
-/*
-Check available balance 
+
+/* 
+// Check available balance 
 $masspay = new masspay();
 echo "<pre>";
 print_r($masspay->check_available_balance());
-echo "</pre>";
+echo "</pre>"; 
 */
 
-/*
- Create User
+
+
+/* 
+//  Create User
  $masspay = new masspay();
  $data = ['country' => 'USA', 'first_name' => 'Asif', 'last_name' => 'Abir', 'email' => 'asif@abir.com'];
  echo "<pre>";
  print_r($masspay->create_user($data));
- echo "</pre>";
+ echo "</pre>"; 
  */
 
-/*
- Gets a list of Companies and their best service offerings for the given country code
+
+/* 
+//  Gets a list of Companies and their best service offerings for the given country code
  $masspay = new masspay();
  echo "<pre>";
- print_r($masspay->get_destination_token());
+ print_r($masspay->get_destination_token(['country' => 'USA', 'amount' => 200, 'include_payer_logos' => false]));
  echo "</pre>";
  */
 
 
 /* 
-Get user attributes for destination_token
+// Get user attributes for destination_token
 $masspay = new masspay();
 $data = ['user_token' => 'usr_7b564bdb-d5e6-11ef-a9fe-0a5553066c45', 'destination_token' => 'dest_006c8fe1-835b-11ef-b954-0235c9d109d3', 'currency' => 'USD'];
 echo "<pre>";
 print_r($masspay->get_user_attributes($data));
 echo "</pre>";  
-*/
+ */
 
 
 /* 
-Store user attributes
+// Store user attributes
 $masspay = new masspay();
 $data = [
     'user_token' => 'usr_7b564bdb-d5e6-11ef-a9fe-0a5553066c45',
@@ -310,10 +229,10 @@ $data = [
 echo "<pre>";
 print_r($masspay->store_user_attributes($data));
 echo "</pre>"; 
-*/
+ */
 
 /* 
-Initiate a payout transaction
+// Initiate a payout transaction
 $masspay = new masspay();
 $data = [
     'user_token' => 'usr_7b564bdb-d5e6-11ef-a9fe-0a5553066c45',
@@ -333,5 +252,5 @@ $data = [
 echo "<pre>";
 print_r($masspay->initiate_payout($data));
 echo "</pre>"; 
-*/
+ */
 ?>
