@@ -127,8 +127,12 @@ class masspay
      * @optional Social Security Number or ITIN, Message To Receiver, Phone Number, Zip Code
      */
 
-    public function store_user_attributes($data): array
+    public function store_user_attributes(array $data): array | bool
     {
+        if(empty($data) ||  !isset($data['user_token']) || !isset($data['destination_token']) || !isset($data['currency']) || !isset($data['values'])) {
+            return false;
+        }
+
         $values = [];
         foreach ($data['values'] as $value) {
             $values[] = [
@@ -153,8 +157,12 @@ class masspay
      * to get attr_set_token, call store_user_attributes
      */
 
-    public function initiate_payout($data): array
+    public function initiate_payout($data): array | bool
     {
+        if(empty($data) ||  !isset($data['user_token']) || !isset($data['values'])) {
+            return false;
+        }
+        
         return $this->handle_curl_operation("/payout/" . $data['user_token'], "POST", $data['values']);
     }
 
